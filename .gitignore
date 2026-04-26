@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Runtime data and generated artifacts
+data/*.json
+data/imports/
+data/rendered/
+*.log
+*.err.log
+*-out.log
+*-err.log
+
+# Build and test output
+dist/
+build/
+coverage/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local inventory scratch files
+a.txt
+docs/a.txt
