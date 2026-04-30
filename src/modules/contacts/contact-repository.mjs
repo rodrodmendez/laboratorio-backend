@@ -29,6 +29,20 @@ export async function listContacts(customerId = '') {
     })));
 }
 
+export async function deleteContact(contactId) {
+  const dbResult = await query(
+    'DELETE FROM lab.contact_person WHERE contact_id = $1',
+    [contactId]
+  ).catch(() => null);
+  if (dbResult) return;
+  const customers = await listCustomers();
+  for (const customer of customers) {
+    if (customer.contacts) {
+      customer.contacts = customer.contacts.filter((c) => c.contactId !== contactId);
+    }
+  }
+}
+
 export async function saveContact(contact) {
   const payload = {
     contactId: contact.contactId || `con-${Date.now()}`,

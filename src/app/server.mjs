@@ -3,7 +3,7 @@ import http from 'node:http';
 import { createReadStream, existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join, basename } from 'node:path';
-import { listCustomers, saveCustomer } from '../modules/customers/customer-repository.mjs';
+import { listCustomers, saveCustomer, deleteCustomer } from '../modules/customers/customer-repository.mjs';
 import { listTemplates, resolveTemplate } from '../modules/document-render/template-repository.mjs';
 import { saveDocumentSession } from '../modules/document-sessions/document-session-repository.mjs';
 import { saveRenderJob } from '../modules/document-render/render-job-repository.mjs';
@@ -12,12 +12,14 @@ import { renderTemplateWorkbook } from '../modules/document-render/xlsx-renderer
 import { analyzeTemplateIntake, registerTemplateIntake } from '../modules/document-render/template-intake-service.mjs';
 import { saveTemporaryProfile, listTemporaryProfiles, deleteTemporaryProfile } from '../modules/temporals/temporary-profile-repository.mjs';
 import { saveDeliveryJob } from '../modules/delivery/delivery-job-repository.mjs';
-import { listContacts, saveContact } from '../modules/contacts/contact-repository.mjs';
+import { listContacts, saveContact, deleteContact } from '../modules/contacts/contact-repository.mjs';
 import { listCatalogEntries, saveCatalogEntry } from '../modules/catalogs/catalog-repository.mjs';
 import { listProducts, saveProduct } from '../modules/products-groups/product-repository.mjs';
 import { getChileRegionalization, listChileCommuneCandidates, listChilePlaces, listChileProvinces, listChileRegions } from '../modules/locations/chile-regionalization-repository.mjs';
 import { sendDocumentEmail } from '../modules/delivery/mailer-service.mjs';
-import { authenticateUser, getLaboratoryProfile, listLaboratoryUsers, listProviders, saveLaboratoryProfile, saveLaboratoryUser, saveProvider } from '../modules/administration/administration-repository.mjs';
+import { authenticateUser, getLaboratoryProfile, listLaboratoryUsers, listProviders, saveLaboratoryProfile, saveLaboratoryUser, saveProvider, listPurchaseOrders, savePurchaseOrder, saveUserCertificate, removeUserCertificate, getUserWithCertificate, extractCertificateInfo, listSupplies, saveSupply } from '../modules/administration/administration-repository.mjs';
+import { generateOcPdf } from '../modules/documents/oc-pdf-generator.mjs';
+import { signPdf } from '../modules/documents/pdf-signer.mjs';
 import { listAnalyticalMethods, listAssayParameters, saveAnalyticalMethod, saveAssayParameter } from '../modules/domain/domain-repository.mjs';
 import { listAssayRecords, listAssayResults, listQuoteFollowUps, listQuotes, saveAssayRecord, saveAssayResult, saveQuote, saveQuoteFollowUp } from '../modules/operations/operations-repository.mjs';
 import { getDbConfig } from '../core/database/config.mjs';
@@ -370,6 +372,92 @@ const server = http.createServer(async (req, res) => {
       return json(res, 400, { error: 'provider_save_failed', message: String(error?.message || error) });
     }
   }
+  if (req.method === 'GET' && url.pathname === '/api/v1/supplies') return json(res, 200, await listSupplies());
+  if (req.method === 'POST' && url.pathname === '/api/v1/supplies') {
+    try {
+      const payload = JSON.parse((await readBody(req)) || '{}');
+      return json(res, 200, await saveSupply(payload));
+    } catch (error) {
+      return json(res, 400, { error: 'supply_save_failed', message: String(error?.message || error) });
+    }
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/v1/purchase-orders') return json(res, 200, await listPurchaseOrders());
+  if (req.method === 'POST' && url.pathname === '/api/v1/purchase-orders') {
+    try {
+      const payload = JSON.parse((await readBody(req)) || '{}');
+      return json(res, 200, await savePurchaseOrder(payload));
+    } catch (error) {
+      return json(res, 400, { error: 'purchase_order_save_failed', message: String(error?.message || error) });
+    }
+  }
+
+  // ── Cargar certificado digital en usuario ─────────────────────────────────────
+  if (req.method === 'POST' && url.pathname === '/api/v1/admin/users/certificate') {
+    try {
+      const payload = JSON.parse((await readBody(req)) || '{}');
+      const { userId, certificateP12Base64, password } = payload;
+      if (!userId || !certificateP12Base64 || !password) {
+        return json(res, 400, { error: 'missing_fields', message: 'userId, certificateP12Base64 y password son obligatorios.' });
+      }
+      const certInfo = extractCertificateInfo(certificateP12Base64, password);
+      const saved    = await saveUserCertificate(userId, certificateP12Base64, certInfo);
+      return json(res, 200, { user: saved, certificateInfo: certInfo });
+    } catch (error) {
+      return json(res, 400, { error: 'certificate_upload_failed', message: String(error?.message || error) });
+    }
+  }
+
+  // ── Eliminar certificado digital de usuario ───────────────────────────────────
+  if (req.method === 'POST' && url.pathname === '/api/v1/admin/users/certificate/remove') {
+    try {
+      const { userId } = JSON.parse((await readBody(req)) || '{}');
+      if (!userId) return json(res, 400, { error: 'missing_fields', message: 'userId es obligatorio.' });
+      const user = await removeUserCertificate(userId);
+      return json(res, 200, { user });
+    } catch (error) {
+      return json(res, 400, { error: 'certificate_remove_failed', message: String(error?.message || error) });
+    }
+  }
+
+  // ── Generar PDF firmado de una OC ─────────────────────────────────────────────
+  if (req.method === 'POST' && url.pathname === '/api/v1/purchase-orders/signed-pdf') {
+    try {
+      const payload = JSON.parse((await readBody(req)) || '{}');
+      const { purchaseOrderId, userId, password } = payload;
+      if (!purchaseOrderId || !userId || !password) {
+        return json(res, 400, { error: 'missing_fields', message: 'purchaseOrderId, userId y password son obligatorios.' });
+      }
+      const orders = await listPurchaseOrders();
+      const oc     = orders.find((o) => o.purchaseOrderId === purchaseOrderId);
+      if (!oc) return json(res, 404, { error: 'purchase_order_not_found' });
+      const userWithCert = await getUserWithCertificate(userId);
+      if (!userWithCert?.certificateP12Base64) {
+        return json(res, 400, { error: 'no_certificate', message: 'El usuario no tiene un certificado digital cargado.' });
+      }
+      const labProfile = await getLaboratoryProfile();
+      const certInfo   = userWithCert.certificateInfo || {};
+      const signerInfo = {
+        name:     certInfo.commonName || userWithCert.fullName || userId,
+        reason:   `Orden de Compra N° ${oc.orderNumber}`,
+        email:    certInfo.email || labProfile.email || '',
+        location: `${labProfile.city || 'Santiago'}, Chile`,
+      };
+      const pdfBuffer  = await generateOcPdf(oc, labProfile, signerInfo);
+      const p12Buffer  = Buffer.from(userWithCert.certificateP12Base64, 'base64');
+      const signedPdf  = await signPdf(pdfBuffer, p12Buffer, password, signerInfo);
+      const fileName   = `OC-${oc.orderNumber}-firmado.pdf`;
+      res.writeHead(200, {
+        'Content-Type':        'application/pdf',
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Length':      String(signedPdf.length),
+        'Access-Control-Allow-Origin': '*',
+      });
+      return res.end(signedPdf);
+    } catch (error) {
+      return json(res, 400, { error: 'signing_failed', message: String(error?.message || error) });
+    }
+  }
   if (req.method === 'GET' && url.pathname === '/api/catalogs') {
     const catalogs = await Promise.all(compatCatalogDefinitions.map(async (definition) => {
       const entries = await listCatalogEntries(definition.catalogType);
@@ -614,6 +702,12 @@ const server = http.createServer(async (req, res) => {
       return json(res, 400, { error: 'customer_save_failed', message: String(error?.message || error) });
     }
   }
+  if (req.method === 'DELETE' && url.pathname.startsWith('/api/v1/customers/')) {
+    const customerId = decodeURIComponent(url.pathname.replace('/api/v1/customers/', ''));
+    if (!customerId) return json(res, 400, { error: 'missing_id' });
+    await deleteCustomer(customerId);
+    return json(res, 200, { deleted: true });
+  }
   if (req.method === 'GET' && url.pathname === '/api/v1/contacts') {
     return json(res, 200, await listContacts(url.searchParams.get('customerId') || ''));
   }
@@ -624,6 +718,12 @@ const server = http.createServer(async (req, res) => {
     } catch (error) {
       return json(res, 400, { error: 'contact_save_failed', message: String(error?.message || error) });
     }
+  }
+  if (req.method === 'DELETE' && url.pathname.startsWith('/api/v1/contacts/')) {
+    const contactId = decodeURIComponent(url.pathname.replace('/api/v1/contacts/', ''));
+    if (!contactId) return json(res, 400, { error: 'missing_id' });
+    await deleteContact(contactId);
+    return json(res, 200, { deleted: true });
   }
   if (req.method === 'GET' && url.pathname === '/api/v1/catalogs') {
     return json(res, 200, await listCatalogEntries(url.searchParams.get('catalogType') || ''));

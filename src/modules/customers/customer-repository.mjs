@@ -87,6 +87,16 @@ export async function listCustomers(rut = '') {
   return seedCustomers.filter((item) => item.normalizedRut === normalizedRut || normalizeRut(item.rut) === normalizedRut);
 }
 
+export async function deleteCustomer(customerId) {
+  const dbResult = await query(
+    'DELETE FROM lab.customer WHERE customer_id = $1',
+    [customerId]
+  ).catch(() => null);
+  if (dbResult) return;
+  const index = seedCustomers.findIndex((c) => c.customerId === customerId);
+  if (index >= 0) seedCustomers.splice(index, 1);
+}
+
 export async function saveCustomer(customer) {
   const payload = {
     customerId: customer.customerId || `cli-${Date.now()}`,
