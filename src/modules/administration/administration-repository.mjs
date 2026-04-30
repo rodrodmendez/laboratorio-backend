@@ -196,7 +196,17 @@ export async function saveProvider(provider) {
     address: String(provider.address || '').trim(),
     phone: String(provider.phone || '').trim(),
     email: String(provider.email || '').trim(),
-    contacts: Array.isArray(provider.contacts) ? provider.contacts : [],
+    contacts: Array.isArray(provider.contacts)
+      ? provider.contacts.map((contact, index) => ({
+          contactId: contact.contactId || `pc-${Date.now()}-${index}`,
+          name: String(contact.name || '').trim(),
+          email: String(contact.email || '').trim(),
+          phone: String(contact.phone || '').trim(),
+          contactOrigin: String(contact.contactOrigin || (index === 0 ? 'primary' : 'manual')).trim(),
+          contactRole: String(contact.contactRole || 'general').trim(),
+          isPrimary: contact.isPrimary === true || index === 0,
+        }))
+      : [],
     isActive: provider.isActive !== false,
   };
   if (!nextProvider.businessName) throw new Error('businessName es obligatorio');

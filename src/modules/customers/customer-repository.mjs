@@ -57,12 +57,48 @@ export async function listCustomers(rut = '') {
       cp.contact_name,
       cp.email,
       cp.phone,
+      cp.is_primary,
+      cp.contact_origin,
+      cp.contact_role
+    from lab.customer c
+    left join lab.contact_person cp on cp.customer_id = c.customer_id
+    where ($1 = '' or c.normalized_rut = $1)
+    order by c.business_name, cp.is_primary desc, cp.contact_name
+  `, [normalizedRut]).catch(() => query(`
+    select
+      c.customer_id,
+      c.display_rut,
+      c.normalized_rut,
+      c.business_name,
+      c.service_type,
+      c.address,
+      c.phone as customer_phone,
+      c.email as customer_email,
+      cp.contact_id,
+      cp.contact_name,
+      cp.email,
+      cp.phone,
       cp.is_primary
     from lab.customer c
     left join lab.contact_person cp on cp.customer_id = c.customer_id
     where ($1 = '' or c.normalized_rut = $1)
     order by c.business_name, cp.is_primary desc, cp.contact_name
-  `, [normalizedRut]).catch(() => null);
+  `, [normalizedRut]).catch(() => query(`
+    select
+      c.customer_id,
+      c.display_rut,
+      c.normalized_rut,
+      c.business_name,
+      cp.contact_id,
+      cp.contact_name,
+      cp.email,
+      cp.phone,
+      cp.is_primary
+    from lab.customer c
+    left join lab.contact_person cp on cp.customer_id = c.customer_id
+    where ($1 = '' or c.normalized_rut = $1)
+    order by c.business_name, cp.is_primary desc, cp.contact_name
+  `, [normalizedRut]).catch(() => null)));
 
   if (dbResult?.rows?.length) {
     const map = new Map();
@@ -86,7 +122,9 @@ export async function listCustomers(rut = '') {
           name: row.contact_name,
           email: row.email,
           phone: row.phone,
-          isPrimary: row.is_primary
+          isPrimary: row.is_primary,
+          contactOrigin: row.contact_origin || (row.is_primary ? 'primary' : 'manual'),
+          contactRole: row.contact_role || 'general'
         });
       }
     }
