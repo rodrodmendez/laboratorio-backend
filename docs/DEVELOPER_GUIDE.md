@@ -187,6 +187,15 @@ El RUT puede venir vacio para permitir carga inicial de empresas incompletas. La
 
 Los departamentos no deben quedar hardcodeados en la vista. Se exponen como catalogo generico `user_department`, con valores base `ADM`, `CT`, `MICROBIOLOGIA`, `MUESTREO`, `QUIMICA` y `OTRO`, ampliables desde el mantenedor de catalogos.
 
+## Contactos por empresa
+
+El contacto principal que se crea desde Cliente o Proveedor representa el contacto generico de la empresa. La vista de contactos debe permitir agregar otros contactos con metadatos:
+
+- `contactOrigin`: `primary` cuando nace como contacto principal/generico, `manual` cuando se agrega desde Contactos.
+- `contactRole`: funcion del contacto dentro de la empresa (`general`, `administrative`, `commercial`, `technical`, `billing`, `other`).
+
+El frontend agrupa contactos por RUT/empresa para distinguir donde fue ingresado y para que soporte pueda ubicar si el dato viene del mantenedor de empresa/proveedor o de una carga posterior.
+
 ## Firma PDF de ordenes de compra
 
 El flujo de firma usa un certificado `.p12/.pfx` guardado en el usuario como `certificateP12Base64`. El endpoint `POST /api/v1/purchase-orders/signed-pdf` recibe `purchaseOrderId`, `userId` y `password`, genera el PDF de la OC y devuelve `application/pdf`.

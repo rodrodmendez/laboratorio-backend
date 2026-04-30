@@ -125,6 +125,7 @@ Si `PG_ENABLED=false` o la consulta a PostgreSQL falla, varios repositorios usan
 - `GET /api/v1/templates/resolve`: resolucion por codigo o slug.
 - `GET/POST /api/v1/customers`: empresas.
 - `GET/POST /api/v1/contacts`: contactos.
+- Contactos guardan origen y funcion cuando el repositorio/almacen soporta esos campos.
 - `GET/POST /api/v1/catalogs`: mantenedores.
 - `GET/POST /api/v1/domain/assay-parameters`: parametros o tipos de ensayo.
 - `GET/POST /api/v1/domain/analytical-methods`: metodos y normas analiticas.

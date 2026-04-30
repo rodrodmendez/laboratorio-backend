@@ -56,6 +56,7 @@ Copiar `.env.example` a `.env` y ajustar:
 - Empresas admiten datos extendidos: rubro, direccion, telefono, email y contacto principal.
 - Usuarios admiten datos extendidos: email, cargo, departamento y color de perfil.
 - Departamentos de usuario se manejan como catalogo `user_department`.
+- Contactos admiten metadatos de origen y funcion para distinguir principal/generico de contactos adicionales.
 - Cotizaciones y registros BAC exponen eliminacion real mediante `DELETE /api/v1/quotes/:quoteId` y `DELETE /api/v1/assay-records/:assayRecordId`.
 - Ordenes de compra pueden generar PDF firmado mediante `POST /api/v1/purchase-orders/signed-pdf` cuando el usuario tiene certificado `.p12/.pfx` cargado.
 - Los backups locales, certificados y archivos generados son datos sensibles u operativos; no deben versionarse.
