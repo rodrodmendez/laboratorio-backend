@@ -58,8 +58,6 @@ export async function listCustomers(rut = '') {
     order by c.business_name, cp.is_primary desc, cp.contact_name
   `, [normalizedRut]).catch(() => null);
 
-  console.log(`[listCustomers] PG disponible=${dbResult !== null}, filas=${dbResult?.rows?.length ?? 'N/A'}, rut="${normalizedRut}"`);
-
   if (dbResult?.rows?.length) {
     const map = new Map();
     for (const row of dbResult.rows) {
@@ -82,37 +80,35 @@ export async function listCustomers(rut = '') {
         });
       }
     }
-    const result = Array.from(map.values());
-    console.log(`[listCustomers] fuente=PG, total=${result.length}, ids=[${result.map(c => c.customerId).join(', ')}]`);
-    return result;
+    return Array.from(map.values());
   }
 
-  const fallback = !normalizedRut
-    ? seedCustomers
-    : seedCustomers.filter((item) => item.normalizedRut === normalizedRut || normalizeRut(item.rut) === normalizedRut);
-  console.log(`[listCustomers] fuente=SEED, total=${fallback.length}, ids=[${fallback.map(c => c.customerId).join(', ')}]`);
-  return fallback;
+  if (!normalizedRut) return seedCustomers;
+  return seedCustomers.filter((item) => item.normalizedRut === normalizedRut || normalizeRut(item.rut) === normalizedRut);
 }
 
 export async function deleteCustomer(customerId) {
-  console.log(`[deleteCustomer] intentando eliminar customerId="${customerId}"`);
-  const dbResult = await query(
-    'DELETE FROM lab.customer WHERE customer_id = $1',
-    [customerId]
-  ).catch((err) => { console.error(`[deleteCustomer] error PG:`, err.message); return null; });
-  console.log(`[deleteCustomer] PG resultado: rowCount=${dbResult?.rowCount ?? 'null (PG no disponible)'}`);
-  if (dbResult?.rowCount > 0) {
-    console.log(`[deleteCustomer] eliminado desde PG ✓`);
-    return;
+  let dbResult = null;
+  let pgError = null;
+  try {
+    dbResult = await query('DELETE FROM lab.customer WHERE customer_id = $1', [customerId]);
+  } catch (err) {
+    pgError = err;
+    console.error(`[deleteCustomer] error PG code=${err?.code}: ${err.message}`);
   }
+
+  if (dbResult?.rowCount > 0) return;
+
+  if (pgError?.code === '23503') {
+    throw new Error(
+      'Este cliente tiene documentos o registros asociados y no puede eliminarse. ' +
+      'Primero elimine o desvincule sus documentos y sesiones de trabajo.'
+    );
+  }
+
+  // PG no disponible o cliente no estaba en PG → intentar en seed
   const index = seedCustomers.findIndex((c) => c.customerId === customerId);
-  console.log(`[deleteCustomer] buscando en seed: index=${index}, seed tiene [${seedCustomers.map(c => c.customerId).join(', ')}]`);
-  if (index >= 0) {
-    seedCustomers.splice(index, 1);
-    console.log(`[deleteCustomer] eliminado desde seed ✓`);
-  } else {
-    console.warn(`[deleteCustomer] ⚠ customerId="${customerId}" no encontrado en PG ni en seed`);
-  }
+  if (index >= 0) seedCustomers.splice(index, 1);
 }
 
 export async function saveCustomer(customer) {

@@ -17,7 +17,7 @@ import { listCatalogEntries, saveCatalogEntry } from '../modules/catalogs/catalo
 import { listProducts, saveProduct } from '../modules/products-groups/product-repository.mjs';
 import { getChileRegionalization, listChileCommuneCandidates, listChilePlaces, listChileProvinces, listChileRegions } from '../modules/locations/chile-regionalization-repository.mjs';
 import { sendDocumentEmail } from '../modules/delivery/mailer-service.mjs';
-import { authenticateUser, getLaboratoryProfile, listLaboratoryUsers, listProviders, saveLaboratoryProfile, saveLaboratoryUser, saveProvider, listPurchaseOrders, savePurchaseOrder, saveUserCertificate, removeUserCertificate, getUserWithCertificate, extractCertificateInfo, listSupplies, saveSupply } from '../modules/administration/administration-repository.mjs';
+import { authenticateUser, getLaboratoryProfile, listLaboratoryUsers, listProviders, saveLaboratoryProfile, saveLaboratoryUser, saveProvider, deleteProvider, listPurchaseOrders, savePurchaseOrder, saveUserCertificate, removeUserCertificate, getUserWithCertificate, extractCertificateInfo, listSupplies, saveSupply } from '../modules/administration/administration-repository.mjs';
 import { generateOcPdf } from '../modules/documents/oc-pdf-generator.mjs';
 import { signPdf } from '../modules/documents/pdf-signer.mjs';
 import { listAnalyticalMethods, listAssayParameters, saveAnalyticalMethod, saveAssayParameter } from '../modules/domain/domain-repository.mjs';
@@ -372,6 +372,12 @@ const server = http.createServer(async (req, res) => {
       return json(res, 400, { error: 'provider_save_failed', message: String(error?.message || error) });
     }
   }
+  if (req.method === 'DELETE' && url.pathname.startsWith('/api/v1/providers/')) {
+    const providerId = decodeURIComponent(url.pathname.replace('/api/v1/providers/', ''));
+    if (!providerId) return json(res, 400, { error: 'missing_id' });
+    await deleteProvider(providerId);
+    return json(res, 200, { deleted: true });
+  }
   if (req.method === 'GET' && url.pathname === '/api/v1/supplies') return json(res, 200, await listSupplies());
   if (req.method === 'POST' && url.pathname === '/api/v1/supplies') {
     try {
@@ -705,8 +711,12 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'DELETE' && url.pathname.startsWith('/api/v1/customers/')) {
     const customerId = decodeURIComponent(url.pathname.replace('/api/v1/customers/', ''));
     if (!customerId) return json(res, 400, { error: 'missing_id' });
-    await deleteCustomer(customerId);
-    return json(res, 200, { deleted: true });
+    try {
+      await deleteCustomer(customerId);
+      return json(res, 200, { deleted: true });
+    } catch (error) {
+      return json(res, 409, { error: 'customer_delete_failed', message: String(error?.message || error) });
+    }
   }
   if (req.method === 'GET' && url.pathname === '/api/v1/contacts') {
     return json(res, 200, await listContacts(url.searchParams.get('customerId') || ''));
@@ -722,8 +732,12 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'DELETE' && url.pathname.startsWith('/api/v1/contacts/')) {
     const contactId = decodeURIComponent(url.pathname.replace('/api/v1/contacts/', ''));
     if (!contactId) return json(res, 400, { error: 'missing_id' });
-    await deleteContact(contactId);
-    return json(res, 200, { deleted: true });
+    try {
+      await deleteContact(contactId);
+      return json(res, 200, { deleted: true });
+    } catch (error) {
+      return json(res, 409, { error: 'contact_delete_failed', message: String(error?.message || error) });
+    }
   }
   if (req.method === 'GET' && url.pathname === '/api/v1/catalogs') {
     return json(res, 200, await listCatalogEntries(url.searchParams.get('catalogType') || ''));

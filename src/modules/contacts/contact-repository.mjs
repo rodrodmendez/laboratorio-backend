@@ -30,27 +30,30 @@ export async function listContacts(customerId = '') {
 }
 
 export async function deleteContact(contactId) {
-  console.log(`[deleteContact] intentando eliminar contactId="${contactId}"`);
-  const dbResult = await query(
-    'DELETE FROM lab.contact_person WHERE contact_id = $1',
-    [contactId]
-  ).catch((err) => { console.error(`[deleteContact] error PG:`, err.message); return null; });
-  console.log(`[deleteContact] PG resultado: rowCount=${dbResult?.rowCount ?? 'null (PG no disponible)'}`);
-  if (dbResult?.rowCount > 0) {
-    console.log(`[deleteContact] eliminado desde PG ✓`);
-    return;
+  let dbResult = null;
+  let pgError = null;
+  try {
+    dbResult = await query('DELETE FROM lab.contact_person WHERE contact_id = $1', [contactId]);
+  } catch (err) {
+    pgError = err;
+    console.error(`[deleteContact] error PG code=${err?.code}: ${err.message}`);
   }
+
+  if (dbResult?.rowCount > 0) return;
+
+  if (pgError?.code === '23503') {
+    throw new Error(
+      'Este contacto tiene registros asociados y no puede eliminarse directamente.'
+    );
+  }
+
+  // PG no disponible o contacto no estaba en PG → intentar en seed
   const customers = await listCustomers();
-  let found = false;
   for (const customer of customers) {
     if (customer.contacts) {
-      const before = customer.contacts.length;
       customer.contacts = customer.contacts.filter((c) => c.contactId !== contactId);
-      if (customer.contacts.length < before) found = true;
     }
   }
-  if (found) console.log(`[deleteContact] eliminado desde seed ✓`);
-  else console.warn(`[deleteContact] ⚠ contactId="${contactId}" no encontrado en PG ni en seed`);
 }
 
 export async function saveContact(contact) {
