@@ -58,6 +58,8 @@ export async function listCustomers(rut = '') {
     order by c.business_name, cp.is_primary desc, cp.contact_name
   `, [normalizedRut]).catch(() => null);
 
+  console.log(`[listCustomers] PG disponible=${dbResult !== null}, filas=${dbResult?.rows?.length ?? 'N/A'}, rut="${normalizedRut}"`);
+
   if (dbResult?.rows?.length) {
     const map = new Map();
     for (const row of dbResult.rows) {
@@ -80,21 +82,37 @@ export async function listCustomers(rut = '') {
         });
       }
     }
-    return Array.from(map.values());
+    const result = Array.from(map.values());
+    console.log(`[listCustomers] fuente=PG, total=${result.length}, ids=[${result.map(c => c.customerId).join(', ')}]`);
+    return result;
   }
 
-  if (!normalizedRut) return seedCustomers;
-  return seedCustomers.filter((item) => item.normalizedRut === normalizedRut || normalizeRut(item.rut) === normalizedRut);
+  const fallback = !normalizedRut
+    ? seedCustomers
+    : seedCustomers.filter((item) => item.normalizedRut === normalizedRut || normalizeRut(item.rut) === normalizedRut);
+  console.log(`[listCustomers] fuente=SEED, total=${fallback.length}, ids=[${fallback.map(c => c.customerId).join(', ')}]`);
+  return fallback;
 }
 
 export async function deleteCustomer(customerId) {
+  console.log(`[deleteCustomer] intentando eliminar customerId="${customerId}"`);
   const dbResult = await query(
     'DELETE FROM lab.customer WHERE customer_id = $1',
     [customerId]
-  ).catch(() => null);
-  if (dbResult?.rowCount > 0) return;
+  ).catch((err) => { console.error(`[deleteCustomer] error PG:`, err.message); return null; });
+  console.log(`[deleteCustomer] PG resultado: rowCount=${dbResult?.rowCount ?? 'null (PG no disponible)'}`);
+  if (dbResult?.rowCount > 0) {
+    console.log(`[deleteCustomer] eliminado desde PG ✓`);
+    return;
+  }
   const index = seedCustomers.findIndex((c) => c.customerId === customerId);
-  if (index >= 0) seedCustomers.splice(index, 1);
+  console.log(`[deleteCustomer] buscando en seed: index=${index}, seed tiene [${seedCustomers.map(c => c.customerId).join(', ')}]`);
+  if (index >= 0) {
+    seedCustomers.splice(index, 1);
+    console.log(`[deleteCustomer] eliminado desde seed ✓`);
+  } else {
+    console.warn(`[deleteCustomer] ⚠ customerId="${customerId}" no encontrado en PG ni en seed`);
+  }
 }
 
 export async function saveCustomer(customer) {
