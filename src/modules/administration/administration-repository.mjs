@@ -174,7 +174,7 @@ export async function listProviders() {
 }
 
 export async function saveProvider(provider) {
-  const providers = await listProviders();
+  const all = await readJsonFile(providersPath, defaultProviders);
   const providerId = provider.providerId || `prov-${Date.now()}`;
   const nextProvider = {
     providerId,
@@ -188,7 +188,7 @@ export async function saveProvider(provider) {
     isActive: provider.isActive !== false,
   };
   if (!nextProvider.businessName) throw new Error('businessName es obligatorio');
-  const next = providers.filter((item) => item.providerId !== providerId).concat(nextProvider);
+  const next = all.filter((item) => item.providerId !== providerId).concat(nextProvider);
   await writeJsonFile(providersPath, next);
   return nextProvider;
 }
