@@ -14,6 +14,7 @@ src/app/server.mjs
   +-- customers / contacts / catalogs / products
   +-- auth / administration / providers
   +-- quotes / assay-records / domain catalogs
+  +-- purchase-orders / documents / pdf-signing
   +-- document-sessions
   +-- document-render
   +-- delivery
@@ -31,6 +32,8 @@ PostgreSQL lab.* si PG_ENABLED=true
 - Base de datos: PostgreSQL via `pg`, activable con `PG_ENABLED=true`.
 - Excel: `xlsx-populate` para escribir plantillas oficiales.
 - PDF: LibreOffice headless (`soffice.exe`) para convertir XLSX a PDF.
+- PDF especifico: `pdf-lib` para construir ordenes de compra en PDF.
+- Firma PDF: `@signpdf/*` y certificado `.p12/.pfx` asociado al usuario.
 - Archivos auxiliares: `adm-zip` para inspeccionar assets de plantillas XLSX.
 - Email: `nodemailer` en `src/modules/delivery/mailer-service.mjs`.
 
@@ -54,6 +57,7 @@ src/modules/
   customers/                  Empresas/clientes.
   delivery/                   Envio email y registro de entregas.
   domain/                     Metodos analiticos y parametros de ensayo.
+  documents/                  PDF de ordenes de compra y firma digital.
   document-render/            Plantillas, render, artefactos emitidos.
   document-sessions/          Sesiones documentales.
   locations/                  Regionalizacion chilena para campos dependientes.
@@ -124,9 +128,12 @@ Si `PG_ENABLED=false` o la consulta a PostgreSQL falla, varios repositorios usan
 - `GET/POST /api/v1/domain/assay-parameters`: parametros o tipos de ensayo.
 - `GET/POST /api/v1/domain/analytical-methods`: metodos y normas analiticas.
 - `GET/POST /api/v1/quotes`: cotizaciones y cabecera comercial.
+- `DELETE /api/v1/quotes/:quoteId`: eliminacion de cotizacion con dependencias operativas.
 - `GET/POST /api/v1/quotes/:quoteId/follow-ups`: seguimientos comerciales.
 - `GET/POST /api/v1/assay-records`: cabecera de registros BAC / informes.
+- `DELETE /api/v1/assay-records/:assayRecordId`: eliminacion de registro BAC con resultados/preservantes.
 - `GET/POST /api/v1/assay-records/:assayRecordId/results`: resultados analiticos.
+- `POST /api/v1/purchase-orders/signed-pdf`: genera PDF de OC y lo firma con certificado del usuario.
 - `GET/POST /api/v1/products`: productos o servicios.
 - `POST /api/v1/template-intake/analyze`: analiza un Excel nuevo.
 - `POST /api/v1/template-intake/register`: registra familia o variante.
@@ -166,6 +173,7 @@ Tambien existen rutas de compatibilidad `/api/catalogs` y `/api/documents/*` par
 
 - Entrada de plantillas: `data/imports/`.
 - Salida renderizada: `data/rendered/`.
+- PDF firmado de OC: respuesta directa `application/pdf` desde `/api/v1/purchase-orders/signed-pdf`.
 - Descarga publica: `/api/v1/artifacts/:fileName`.
 - Checksums: se calcula SHA-256 para controlar trazabilidad de archivos fuente y emitidos.
 
@@ -176,6 +184,8 @@ Tambien existen rutas de compatibilidad `/api/catalogs` y `/api/documents/*` par
 - `xlsx-renderer.mjs` contiene funciones de render por familia documental, por ejemplo PG04, FAS, piscina y arrastre de arena.
 - `locations/chile-regionalization-repository.mjs` normaliza `data/RegionalizaciónActualizada.xlsx` y mantiene cache en memoria para poblar selects dependientes sin requerir PostgreSQL.
 - `operations/operations-repository.mjs` agrega una capa transaccional compatible con el backend actual para cotizaciones, seguimientos, registros de ensayo y resultados.
+- `documents/oc-pdf-generator.mjs` construye una orden de compra en PDF desde datos persistidos y perfil del laboratorio.
+- `documents/pdf-signer.mjs` agrega placeholder de firma y firma con certificado P12/PFX cargado por usuario.
 - Los repositorios intentan PostgreSQL primero y hacen fallback a datos locales para mantener continuidad de desarrollo.
 
 ## Como agregar una funcionalidad
@@ -193,6 +203,8 @@ Tambien existen rutas de compatibilidad `/api/catalogs` y `/api/documents/*` par
 - Las rutas de plantillas dependen de ubicaciones Windows historicas y de `data/imports`.
 - La conversion PDF depende de LibreOffice instalado en la ruta configurada.
 - Algunos datos pueden existir solo en semillas/fallback si PostgreSQL no esta activo.
+- Los backups locales y certificados contienen informacion sensible; deben mantenerse fuera de Git.
+- Los campos extendidos de cliente requieren columnas compatibles en PostgreSQL para no depender del fallback en memoria.
 
 ## Observaciones de continuidad
 

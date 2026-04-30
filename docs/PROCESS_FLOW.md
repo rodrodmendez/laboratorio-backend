@@ -53,6 +53,8 @@ Repositorio propietario
 Respuesta JSON normalizada para frontend
 ```
 
+Para eliminacion, el frontend confirma la accion y llama `DELETE /api/v1/recurso/:id`. Cotizaciones y registros BAC eliminan primero sus dependencias operativas directas para mantener consistencia.
+
 ## Flujo de emision documental
 
 ```text
@@ -82,6 +84,20 @@ JSON con artifacts, warnings, errors y emailResult
 3. La API devuelve `downloadUrl`.
 4. El frontend descarga usando `GET /api/v1/artifacts/:fileName`.
 
+## Flujo de OC firmada
+
+```text
+POST /api/v1/purchase-orders/signed-pdf
+  |
+  +-- valida purchaseOrderId, userId y password del certificado
+  +-- carga orden de compra y perfil del laboratorio
+  +-- generateOcPdf() construye el PDF base
+  +-- signPdf() firma con P12/PFX del usuario
+  |
+  v
+Respuesta application/pdf
+```
+
 ## Flujo de alta de plantilla
 
 1. `POST /api/v1/template-intake/analyze` recibe ruta del Excel.
@@ -95,4 +111,5 @@ JSON con artifacts, warnings, errors y emailResult
 - `data/rendered`: salida de documentos emitidos.
 - `data/imports`: plantillas importadas o convertidas.
 - `data/*.json`: respaldo local si no hay BD.
+- `data/backups`: respaldo local sensible, no versionable.
 - Logs de consola: errores de rutas, render o conversion PDF.

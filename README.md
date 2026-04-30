@@ -1,6 +1,6 @@
 # laboratorio-backend
 
-Backend operativo para el sistema documental del laboratorio. Expone la API local, mantiene clientes/catalogos/productos, resuelve plantillas oficiales y genera artefactos XLSX/PDF.
+Backend operativo para el sistema documental del laboratorio. Expone la API local, mantiene clientes/catalogos/productos, resuelve plantillas oficiales y genera artefactos XLSX/PDF. Tambien soporta operaciones comerciales/BAC, ordenes de compra y firma PDF con certificado cargado por usuario.
 
 ## Ejecucion rapida
 
@@ -42,6 +42,7 @@ Copiar `.env.example` a `.env` y ajustar:
 - `src/core/database`: configuracion y conexion PostgreSQL.
 - `src/modules/document-render`: plantillas, intake, render y artefactos.
 - `src/modules/administration`: laboratorio, usuarios, autenticacion local y proveedores.
+- `src/modules/documents`: generacion PDF especifica y firma de ordenes de compra.
 - `src/modules/operations`: cotizaciones, seguimientos, registros BAC y resultados.
 - `src/modules/domain`: parametros de ensayo y metodos analiticos.
 - `src/modules/catalogs`: mantenedores reutilizables.
@@ -49,6 +50,13 @@ Copiar `.env.example` a `.env` y ajustar:
 - `src/modules/products-groups`: productos/servicios sugeridos.
 - `src/modules/locations`: regionalizacion chilena cargada desde `data/RegionalizaciónActualizada.xlsx`.
 - `src/modules/delivery`: envio por email.
+
+## Cambios operativos recientes
+
+- Empresas admiten datos extendidos: rubro, direccion, telefono, email y contacto principal.
+- Cotizaciones y registros BAC exponen eliminacion real mediante `DELETE /api/v1/quotes/:quoteId` y `DELETE /api/v1/assay-records/:assayRecordId`.
+- Ordenes de compra pueden generar PDF firmado mediante `POST /api/v1/purchase-orders/signed-pdf` cuando el usuario tiene certificado `.p12/.pfx` cargado.
+- Los backups locales, certificados y archivos generados son datos sensibles u operativos; no deben versionarse.
 
 ## Regionalizacion chilena
 
@@ -68,5 +76,6 @@ Para obtener la estructura completa usar `GET /api/v1/chile-regionalization`.
 - `data/imports`: plantillas importadas o convertidas.
 - `data/rendered`: documentos generados.
 - `data/*.json`: persistencia fallback si la BD no esta disponible.
+- `data/backups`: respaldos locales con potenciales usuarios, passwords o certificados.
 
 Estos archivos no deben subirse al repositorio.
