@@ -52,6 +52,14 @@ const fallbackCatalogs = {
     'Referido',
     'Licitacion',
   ],
+  user_department: [
+    'ADM',
+    'CT',
+    'MICROBIOLOGIA',
+    'MUESTREO',
+    'QUIMICA',
+    'OTRO',
+  ],
   document_type: [
     'cotizacion',
     'informe-ensayo',

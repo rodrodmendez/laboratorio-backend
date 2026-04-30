@@ -85,6 +85,7 @@ const compatCatalogDefinitions = [
   ['acreditaciones', 'Acreditaciones', 'accreditation_scope'],
   ['tiposDocumentoComercial', 'Tipos de Documento Comercial', 'business_document_type'],
   ['canalesIngreso', 'Canales de Ingreso', 'intake_channel'],
+  ['departamentosUsuario', 'Departamentos de Usuario', 'user_department'],
   ['condicionesNormativas', 'Condiciones Normativas', 'document_type'],
   ['observacionesCotizacionParcial', 'Observaciones Cot. Parcial', 'observaciones_cotizacion_parcial'],
   ['estadosAprobacionCompra', 'Estados de Aprobacion OC', 'estado_aprobacion_compra'],
