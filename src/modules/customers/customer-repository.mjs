@@ -92,7 +92,7 @@ export async function deleteCustomer(customerId) {
     'DELETE FROM lab.customer WHERE customer_id = $1',
     [customerId]
   ).catch(() => null);
-  if (dbResult) return;
+  if (dbResult?.rowCount > 0) return;
   const index = seedCustomers.findIndex((c) => c.customerId === customerId);
   if (index >= 0) seedCustomers.splice(index, 1);
 }

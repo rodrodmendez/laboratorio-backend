@@ -34,7 +34,7 @@ export async function deleteContact(contactId) {
     'DELETE FROM lab.contact_person WHERE contact_id = $1',
     [contactId]
   ).catch(() => null);
-  if (dbResult) return;
+  if (dbResult?.rowCount > 0) return;
   const customers = await listCustomers();
   for (const customer of customers) {
     if (customer.contacts) {
