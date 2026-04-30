@@ -8,9 +8,14 @@
     "dev": "node src/app/server.mjs"
   },
   "dependencies": {
+    "@signpdf/placeholder-pdf-lib": "^3.3.0",
+    "@signpdf/signer-p12": "^3.3.0",
+    "@signpdf/signpdf": "^3.3.0",
     "adm-zip": "^0.5.17",
     "dotenv": "^17.4.0",
+    "node-forge": "^1.4.0",
     "nodemailer": "^8.0.4",
+    "pdf-lib": "^1.17.1",
     "pg": "^8.20.0",
     "xlsx-populate": "^1.21.0"
   }

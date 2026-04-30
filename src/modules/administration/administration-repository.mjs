@@ -193,6 +193,12 @@ export async function saveProvider(provider) {
   return nextProvider;
 }
 
+export async function deleteProvider(providerId) {
+  const all = await readJsonFile(providersPath, defaultProviders);
+  const next = all.filter((p) => p.providerId !== providerId);
+  await writeJsonFile(providersPath, next);
+}
+
 // ─── Órdenes de compra ────────────────────────────────────────────────────────
 
 export async function listPurchaseOrders() {

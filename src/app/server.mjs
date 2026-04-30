@@ -21,7 +21,7 @@ import { authenticateUser, getLaboratoryProfile, listLaboratoryUsers, listProvid
 import { generateOcPdf } from '../modules/documents/oc-pdf-generator.mjs';
 import { signPdf } from '../modules/documents/pdf-signer.mjs';
 import { listAnalyticalMethods, listAssayParameters, saveAnalyticalMethod, saveAssayParameter } from '../modules/domain/domain-repository.mjs';
-import { listAssayRecords, listAssayResults, listQuoteFollowUps, listQuotes, saveAssayRecord, saveAssayResult, saveQuote, saveQuoteFollowUp } from '../modules/operations/operations-repository.mjs';
+import { deleteAssayRecord, deleteQuote, listAssayRecords, listAssayResults, listQuoteFollowUps, listQuotes, saveAssayRecord, saveAssayResult, saveQuote, saveQuoteFollowUp } from '../modules/operations/operations-repository.mjs';
 import { getDbConfig } from '../core/database/config.mjs';
 import { query } from '../core/database/pg-client.mjs';
 
@@ -799,6 +799,16 @@ const server = http.createServer(async (req, res) => {
       return json(res, 400, { error: 'quote_follow_up_save_failed', message: String(error?.message || error) });
     }
   }
+  if (req.method === 'DELETE' && url.pathname.startsWith('/api/v1/quotes/') && !url.pathname.endsWith('/follow-ups')) {
+    const quoteId = decodeURIComponent(url.pathname.replace('/api/v1/quotes/', ''));
+    if (!quoteId) return json(res, 400, { error: 'missing_id' });
+    try {
+      await deleteQuote(quoteId);
+      return json(res, 200, { deleted: true });
+    } catch (error) {
+      return json(res, 409, { error: 'quote_delete_failed', message: String(error?.message || error) });
+    }
+  }
   if (req.method === 'GET' && url.pathname === '/api/v1/assay-records') {
     return json(res, 200, await listAssayRecords({
       customerId: url.searchParams.get('customerId') || '',
@@ -811,6 +821,16 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, await saveAssayRecord(payload));
     } catch (error) {
       return json(res, 400, { error: 'assay_record_save_failed', message: String(error?.message || error) });
+    }
+  }
+  if (req.method === 'DELETE' && url.pathname.startsWith('/api/v1/assay-records/') && !url.pathname.endsWith('/results')) {
+    const assayRecordId = decodeURIComponent(url.pathname.replace('/api/v1/assay-records/', ''));
+    if (!assayRecordId) return json(res, 400, { error: 'missing_id' });
+    try {
+      await deleteAssayRecord(assayRecordId);
+      return json(res, 200, { deleted: true });
+    } catch (error) {
+      return json(res, 409, { error: 'assay_record_delete_failed', message: String(error?.message || error) });
     }
   }
   if (req.method === 'GET' && url.pathname.startsWith('/api/v1/assay-records/') && url.pathname.endsWith('/results')) {

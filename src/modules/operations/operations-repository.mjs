@@ -306,6 +306,34 @@ export async function saveQuote(quote) {
   return next;
 }
 
+export async function deleteQuote(quoteId) {
+  const pool = await getPgPool().catch(() => null);
+  if (pool) {
+    const client = await pool.connect();
+    try {
+      await client.query('begin');
+      await client.query('delete from lab.quote_analysis_package where quote_id = $1', [quoteId]);
+      await client.query('delete from lab.quote_follow_up where quote_id = $1', [quoteId]);
+      const result = await client.query('delete from lab.quote_record where quote_id = $1', [quoteId]);
+      await client.query('commit');
+      client.release();
+      if (result.rowCount > 0) return;
+    } catch (err) {
+      await client.query('rollback').catch(() => null);
+      client.release();
+      console.error(`[deleteQuote] PG code=${err?.code} table=${err?.table} msg=${err?.message}`);
+      if (err?.code === '23503') {
+        throw new Error('Esta cotización tiene documentos asociados y no puede eliminarse.');
+      }
+      // 42P01 = tabla no existe en PG → caer al fallback JSON
+      if (err?.code !== '42P01') throw err;
+    }
+  }
+  // Fallback JSON
+  const quotes = await loadQuotesFallback();
+  await writeJsonFile(quotesPath, quotes.filter((q) => q.quoteId !== quoteId));
+}
+
 export async function listQuoteFollowUps(quoteId) {
   if (!quoteId) return [];
   const dbResult = await query(`
@@ -631,4 +659,30 @@ export async function saveAssayResult(assayRecordId, result) {
   records[recordIndex].results = existingResults;
   await writeJsonFile(assayRecordsPath, records);
   return { assayRecordId, ...payload };
+}
+
+export async function deleteAssayRecord(assayRecordId) {
+  const pool = await getPgPool().catch(() => null);
+  if (pool) {
+    const client = await pool.connect();
+    try {
+      await client.query('begin');
+      await client.query('delete from lab.assay_result where assay_record_id = $1', [assayRecordId]);
+      await client.query('delete from lab.assay_record_preservative where assay_record_id = $1', [assayRecordId]);
+      const result = await client.query('delete from lab.assay_record where assay_record_id = $1', [assayRecordId]);
+      await client.query('commit');
+      client.release();
+      if (result.rowCount > 0) return;
+    } catch (err) {
+      await client.query('rollback').catch(() => null);
+      client.release();
+      console.error(`[deleteAssayRecord] PG code=${err?.code} table=${err?.table} msg=${err?.message}`);
+      if (err?.code === '23503') {
+        throw new Error('Este registro tiene documentos asociados y no puede eliminarse.');
+      }
+      if (err?.code !== '42P01') throw err;
+    }
+  }
+  const records = await loadAssayRecordsFallback();
+  await writeJsonFile(assayRecordsPath, records.filter((r) => r.assayRecordId !== assayRecordId));
 }

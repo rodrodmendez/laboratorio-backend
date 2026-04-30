@@ -70,6 +70,14 @@ export async function saveContact(contact) {
     throw new Error('customerId y contactName son obligatorios');
   }
 
+  if (payload.isPrimary) {
+    await query(`
+      update lab.contact_person
+      set is_primary = false, updated_at = now()
+      where customer_id = $1 and contact_id <> $2
+    `, [payload.customerId, payload.contactId]).catch(() => null);
+  }
+
   const dbResult = await query(`
     insert into lab.contact_person (contact_id, customer_id, contact_name, email, phone, is_primary)
     values ($1,$2,$3,$4,$5,$6)

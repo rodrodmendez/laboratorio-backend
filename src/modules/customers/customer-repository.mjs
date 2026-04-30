@@ -6,6 +6,7 @@ const seedCustomers = [
     rut: '76.123.456-7',
     normalizedRut: '76123456-7',
     businessName: 'Aguas del Valle SPA',
+    serviceType: '', address: '', phone: '', email: '',
     contacts: [
       {
         contactId: 'con-001',
@@ -20,6 +21,7 @@ const seedCustomers = [
     rut: '96.555.440-2',
     normalizedRut: '96555440-2',
     businessName: 'Servicios Sanitarios del Norte Ltda.',
+    serviceType: '', address: '', phone: '', email: '',
     contacts: [
       {
         contactId: 'con-002',
@@ -47,6 +49,10 @@ export async function listCustomers(rut = '') {
       c.display_rut,
       c.normalized_rut,
       c.business_name,
+      c.service_type,
+      c.address,
+      c.phone as customer_phone,
+      c.email as customer_email,
       cp.contact_id,
       cp.contact_name,
       cp.email,
@@ -67,6 +73,10 @@ export async function listCustomers(rut = '') {
           rut: row.display_rut,
           normalizedRut: row.normalized_rut,
           businessName: row.business_name,
+          serviceType: row.service_type || '',
+          address: row.address || '',
+          phone: row.customer_phone || '',
+          email: row.customer_email || '',
           contacts: []
         });
       }
@@ -117,22 +127,58 @@ export async function saveCustomer(customer) {
     normalizedRut: normalizeRut(customer.rut || customer.normalizedRut || ''),
     displayRut: formatDisplayRut(customer.rut || customer.displayRut || ''),
     businessName: String(customer.businessName || '').trim(),
+    serviceType: String(customer.serviceType || '').trim(),
+    address: String(customer.address || '').trim(),
+    phone: String(customer.phone || '').trim(),
+    email: String(customer.email || '').trim(),
   };
 
-  if (!payload.normalizedRut || !payload.businessName) {
-    throw new Error('rut y businessName son obligatorios');
+  if (!payload.businessName) {
+    throw new Error('businessName es obligatorio');
   }
 
   const dbResult = await query(`
-    insert into lab.customer (customer_id, normalized_rut, display_rut, business_name)
-    values ($1,$2,$3,$4)
+    insert into lab.customer (
+      customer_id, normalized_rut, display_rut, business_name,
+      service_type, address, phone, email
+    )
+    values ($1,$2,$3,$4,$5,$6,$7,$8)
     on conflict (customer_id) do update set
       normalized_rut = excluded.normalized_rut,
       display_rut = excluded.display_rut,
       business_name = excluded.business_name,
+      service_type = excluded.service_type,
+      address = excluded.address,
+      phone = excluded.phone,
+      email = excluded.email,
       updated_at = now()
-    returning customer_id, normalized_rut, display_rut, business_name
-  `, [payload.customerId, payload.normalizedRut, payload.displayRut || payload.normalizedRut, payload.businessName]).catch(() => null);
+    returning customer_id, normalized_rut, display_rut, business_name, service_type, address, phone, email
+  `, [
+    payload.customerId,
+    payload.normalizedRut || null,
+    payload.displayRut || payload.normalizedRut || null,
+    payload.businessName,
+    payload.serviceType || null,
+    payload.address || null,
+    payload.phone || null,
+    payload.email || null
+  ]).catch(() => null);
+
+  // Siempre sincronizar el seed con los campos extra para mantenerlos en sesión
+  const index = seedCustomers.findIndex((item) => item.customerId === payload.customerId);
+  const next = {
+    customerId: payload.customerId,
+    rut: payload.displayRut || payload.normalizedRut,
+    normalizedRut: payload.normalizedRut,
+    businessName: payload.businessName,
+    serviceType: payload.serviceType,
+    address: payload.address,
+    phone: payload.phone,
+    email: payload.email,
+    contacts: index >= 0 ? (seedCustomers[index].contacts || []) : [],
+  };
+  if (index >= 0) seedCustomers[index] = { ...seedCustomers[index], ...next };
+  else seedCustomers.unshift(next);
 
   if (dbResult?.rows?.[0]) {
     return {
@@ -140,12 +186,12 @@ export async function saveCustomer(customer) {
       normalizedRut: dbResult.rows[0].normalized_rut,
       rut: dbResult.rows[0].display_rut,
       businessName: dbResult.rows[0].business_name,
+      serviceType: dbResult.rows[0].service_type || '',
+      address: dbResult.rows[0].address || '',
+      phone: dbResult.rows[0].phone || '',
+      email: dbResult.rows[0].email || '',
     };
   }
 
-  const index = seedCustomers.findIndex((item) => item.customerId === payload.customerId);
-  const next = { customerId: payload.customerId, rut: payload.displayRut || payload.normalizedRut, normalizedRut: payload.normalizedRut, businessName: payload.businessName, contacts: [] };
-  if (index >= 0) seedCustomers[index] = { ...seedCustomers[index], ...next };
-  else seedCustomers.unshift(next);
   return next;
 }
