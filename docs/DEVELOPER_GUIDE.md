@@ -181,6 +181,12 @@ El frontend puede enviar empresas con `serviceType`, `address`, `phone`, `email`
 
 El RUT puede venir vacio para permitir carga inicial de empresas incompletas. La base debe aceptar `normalized_rut` y `display_rut` nulos, o el alta caera al fallback.
 
+## Usuarios extendidos
+
+`src/modules/administration/administration-repository.mjs` mantiene usuarios de sistema con datos de cuenta, permisos y perfil. Los campos operativos de perfil son `email`, `position`, `departmentKey` y `profileColor`.
+
+Los departamentos no deben quedar hardcodeados en la vista. Se exponen como catalogo generico `user_department`, con valores base `ADM`, `CT`, `MICROBIOLOGIA`, `MUESTREO`, `QUIMICA` y `OTRO`, ampliables desde el mantenedor de catalogos.
+
 ## Firma PDF de ordenes de compra
 
 El flujo de firma usa un certificado `.p12/.pfx` guardado en el usuario como `certificateP12Base64`. El endpoint `POST /api/v1/purchase-orders/signed-pdf` recibe `purchaseOrderId`, `userId` y `password`, genera el PDF de la OC y devuelve `application/pdf`.

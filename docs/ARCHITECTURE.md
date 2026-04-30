@@ -112,6 +112,7 @@ Si `PG_ENABLED=false` o la consulta a PostgreSQL falla, varios repositorios usan
 - `POST /api/auth/login`: autenticacion local para el frontend.
 - `GET/POST /api/v1/admin/laboratory`: perfil administrativo del laboratorio.
 - `GET/POST /api/v1/admin/users`: usuarios, roles y permisos iniciales.
+- `GET/POST /api/v1/catalogs?catalogType=user_department`: departamentos para usuarios de sistema.
 - `GET/POST /api/v1/providers`: proveedores.
 - `GET /api/v1/document-types`: tipos documentales.
 - `GET /api/v1/document-codes`: codigos disponibles segun plantillas.
